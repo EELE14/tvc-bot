@@ -22,5 +22,6 @@ export function loadBotConfig(): BotConfig {
     itemCacheTtlMs: Number(
       process.env.ITEM_CACHE_TTL_MS ?? DEFAULT_ITEM_CACHE_TTL_MS,
     ),
+    analyticsSalt: process.env.ANALYTICS_SALT || undefined,
   };
 }

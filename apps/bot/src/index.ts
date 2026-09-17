@@ -8,6 +8,7 @@ import {
 import { createPrismaClient } from "@tvc/db";
 import { loadBotConfig } from "./config.ts";
 import { createItemRepository } from "./items.ts";
+import { createLookupRecorder } from "./analytics.ts";
 import { registerCommands } from "./commands.ts";
 import {
   handleValue,
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
   const config = loadBotConfig();
   const db = createPrismaClient(config.databaseUrl);
   const items = createItemRepository(db, config.itemCacheTtlMs);
+  const record = createLookupRecorder(db, config.analyticsSalt);
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
   function setPresence(status: PresenceStatusData, state: string): void {
@@ -55,7 +57,7 @@ async function main(): Promise<void> {
         interaction.isChatInputCommand() &&
         interaction.commandName === valueCommand.name
       ) {
-        await handleValue(interaction, items);
+        await handleValue(interaction, items, record);
       }
     } catch (error) {
       console.error("interaction failed", error);

@@ -8,6 +8,7 @@ export type DiscordConfig = {
 export type BotConfig = DiscordConfig & {
   databaseUrl: string;
   itemCacheTtlMs: number;
+  analyticsSalt: string | undefined;
 };
 
 export type ItemWithValues = ItemModel & { values: ItemValueModel[] };

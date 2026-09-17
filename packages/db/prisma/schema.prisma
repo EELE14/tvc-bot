@@ -21,6 +21,20 @@ enum ItemColour {
   @@map("item_colour")
 }
 
+enum LookupOutcome {
+  RESOLVED            @map("resolved")
+  UNKNOWN_ITEM        @map("unknown_item")
+  AMBIGUOUS_QUERY     @map("ambiguous_query")
+  SERIAL_REQUIRED     @map("serial_required")
+  SERIAL_OUT_OF_RANGE @map("serial_out_of_range")
+  SERIAL_UNPARSEABLE  @map("serial_unparseable")
+  ITEM_UNPRICED       @map("item_unpriced")
+  EASTER_EGG          @map("easter_egg")
+  FAILED              @map("failed")
+
+  @@map("lookup_outcome")
+}
+
 enum EditorRole {
   ADMIN  @map("admin")
   EDITOR @map("editor")
@@ -49,6 +63,7 @@ model Item {
   aliases   ItemAlias[]
   values    ItemValue[]
   revisions ItemRevision[]
+  lookups   Lookup[]
 
   @@map("item")
 }
@@ -104,4 +119,28 @@ model Editor {
   addedBy   String?    @map("added_by")
 
   @@map("editor")
+}
+
+model Lookup {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  outcome     LookupOutcome
+  query       String
+  itemId      String?       @map("item_id")
+  serialInput String?       @map("serial_input")
+  serial      Int?
+  amount      Int?
+  candidates  Int           @default(1)
+  userHash    String        @map("user_hash")
+  guildId     String?       @map("guild_id")
+  channelId   String?       @map("channel_id")
+  durationMs  Int           @map("duration_ms")
+
+  item Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([itemId, createdAt])
+  @@index([outcome, createdAt])
+  @@index([userHash])
+  @@map("lookup")
 }
