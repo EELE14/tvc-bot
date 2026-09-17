@@ -1,0 +1,245 @@
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createPrismaClient, ItemColour, EditorRole } from "../src/index.ts";
+
+const IMPORT_ACTOR = "legacy-import";
+
+type LegacyScale = {
+  value: number;
+  demand: number;
+  stability: number;
+  overpay: number;
+};
+
+type LegacyTier = LegacyScale & { min: number; max: number };
+
+type LegacyItem = {
+  name: string;
+  aliases: string[];
+  image: string;
+  colour: string;
+  usertag: string;
+  unsure: boolean;
+  nsv: LegacyScale | null;
+  ddsrv: LegacyTier[];
+  timestamp: number;
+};
+
+class ImportError extends Error {}
+class DryRunRollback extends Error {}
+
+function fail(source: string, message: string): never {
+  throw new ImportError(`${source}: ${message}`);
+}
+
+function toColour(source: string, raw: string): ItemColour | null {
+  if (raw === "") return null;
+  const member = raw.toUpperCase();
+  if (!(member in ItemColour))
+    fail(source, `unbekannte Farbe ${JSON.stringify(raw)}`);
+  return ItemColour[member as keyof typeof ItemColour];
+}
+
+function assertScale(source: string, scale: LegacyScale, label: string) {
+  const { value, demand, stability, overpay } = scale;
+  if (!Number.isInteger(value) || value < 0)
+    fail(source, `${label}: ungültiger Wert ${value}`);
+  if (!Number.isInteger(demand) || demand < 1 || demand > 5)
+    fail(source, `${label}: demand ${demand}`);
+  if (!Number.isInteger(stability) || stability < 1 || stability > 5)
+    fail(source, `${label}: stability ${stability}`);
+  if (!Number.isInteger(overpay) || overpay < 0 || overpay > 5)
+    fail(source, `${label}: overpay ${overpay}`);
+}
+
+function parseItem(source: string, raw: unknown): LegacyItem {
+  if (typeof raw !== "object" || raw === null) fail(source, "kein Objekt");
+  const item = raw as LegacyItem;
+
+  if (typeof item.name !== "string" || item.name === "")
+    fail(source, "name fehlt");
+  if (!Array.isArray(item.aliases)) fail(source, "aliases fehlt");
+  if (typeof item.timestamp !== "number") fail(source, "timestamp fehlt");
+  if (item.nsv && item.ddsrv.length > 0)
+    fail(source, "hat NSV und DDSRV gleichzeitig");
+
+  if (item.nsv) assertScale(source, item.nsv, "nsv");
+  for (const tier of item.ddsrv) {
+    assertScale(source, tier, `tier ${tier.min}-${tier.max}`);
+    if (!Number.isInteger(tier.min) || !Number.isInteger(tier.max))
+      fail(source, `tier ${tier.min}-${tier.max}: Grenze ungültig`);
+    if (tier.min > tier.max)
+      fail(source, `tier ${tier.min}-${tier.max}: min > max`);
+  }
+
+  const normalized = item.aliases.map((a) => a.trim().toLowerCase());
+  if (new Set(normalized).size !== normalized.length)
+    fail(source, "doppelter Alias");
+
+  return item;
+}
+
+async function readLegacyItems(dir: string) {
+  const files = (await readdir(dir))
+    .filter((f) => f.endsWith(".json") && f !== "editors.json")
+    .sort();
+  return Promise.all(
+    files.map(async (file) => {
+      const slug = path.basename(file, ".json");
+      const raw = JSON.parse(await readFile(path.join(dir, file), "utf8"));
+      return { slug, raw, item: parseItem(file, raw) };
+    }),
+  );
+}
+
+async function readLegacyEditors(dir: string): Promise<string[]> {
+  const raw = JSON.parse(
+    await readFile(path.join(dir, "editors.json"), "utf8"),
+  );
+  if (!Array.isArray(raw.allowed)) fail("editors.json", "allowed fehlt");
+  return raw.allowed;
+}
+
+function valueRows(item: LegacyItem) {
+  if (item.nsv) {
+    const { value, demand, stability, overpay } = item.nsv;
+    return [
+      {
+        serialMin: null,
+        serialMax: null,
+        amount: value,
+        demand,
+        stability,
+        overpay,
+      },
+    ];
+  }
+  return item.ddsrv.map(({ min, max, value, demand, stability, overpay }) => ({
+    serialMin: min,
+    serialMax: max,
+    amount: value,
+    demand,
+    stability,
+    overpay,
+  }));
+}
+
+async function main() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) fail("env", "DATABASE_URL fehlt");
+
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const dataDir =
+    process.env.LEGACY_DATA_DIR ?? path.resolve(here, "../../../old/Data");
+  const adminIds = new Set(
+    (process.env.DISCORD_ADMIN_IDS ?? "").split(",").filter(Boolean),
+  );
+  const dryRun = process.argv.includes("--dry-run");
+
+  const entries = await readLegacyItems(dataDir);
+  const editorIds = await readLegacyEditors(dataDir);
+
+  const expected = {
+    items: entries.length,
+    values: entries.reduce((n, e) => n + valueRows(e.item).length, 0),
+    aliases: entries.reduce((n, e) => n + e.item.aliases.length, 0),
+    editors: editorIds.length,
+  };
+
+  const db = createPrismaClient(connectionString);
+
+  await db.$transaction(
+    async (tx) => {
+      for (const { slug, raw, item } of entries) {
+        const data = {
+          name: item.name,
+          colour: toColour(slug, item.colour),
+          unsure: item.unsure,
+          imageSourceUrl: item.image || null,
+          lastEditorTag: item.usertag || null,
+          valuedAt: new Date(item.timestamp * 1000),
+        };
+
+        const stored = await tx.item.upsert({
+          where: { slug },
+          create: { slug, ...data },
+          update: data,
+        });
+
+        await tx.itemAlias.deleteMany({ where: { itemId: stored.id } });
+        await tx.itemValue.deleteMany({ where: { itemId: stored.id } });
+
+        await tx.itemAlias.createMany({
+          data: item.aliases.map((alias) => ({
+            itemId: stored.id,
+            alias,
+            normalized: alias.trim().toLowerCase(),
+          })),
+        });
+        await tx.itemValue.createMany({
+          data: valueRows(item).map((row) => ({ itemId: stored.id, ...row })),
+        });
+
+        const recorded = await tx.itemRevision.count({
+          where: { itemId: stored.id, actor: IMPORT_ACTOR },
+        });
+        if (recorded === 0) {
+          await tx.itemRevision.create({
+            data: {
+              itemId: stored.id,
+              actor: IMPORT_ACTOR,
+              reason: "1:1 aus old/Data",
+              snapshot: raw,
+            },
+          });
+        }
+      }
+
+      for (const discordId of editorIds) {
+        const role = adminIds.has(discordId)
+          ? EditorRole.ADMIN
+          : EditorRole.EDITOR;
+        await tx.editor.upsert({
+          where: { discordId },
+          create: { discordId, role },
+          update: { role },
+        });
+      }
+
+      const actual = {
+        items: await tx.item.count(),
+        values: await tx.itemValue.count(),
+        aliases: await tx.itemAlias.count(),
+        editors: await tx.editor.count(),
+      };
+
+      for (const [key, count] of Object.entries(expected)) {
+        const got = actual[key as keyof typeof actual];
+        if (got !== count)
+          fail(
+            "abgleich",
+            `${key}: erwartet ${count}, in der Datenbank ${got}`,
+          );
+      }
+
+      console.log("Abgleich in Ordnung:", actual);
+      if (dryRun) throw new DryRunRollback();
+    },
+    { maxWait: 20_000, timeout: 180_000 },
+  );
+
+  await db.$disconnect();
+  console.log("Import abgeschlossen.");
+}
+
+main().catch((error) => {
+  if (error instanceof DryRunRollback) {
+    console.log("Probelauf beendet, nichts geschrieben.");
+    return;
+  }
+  console.error(
+    error instanceof ImportError ? `Abbruch — ${error.message}` : error,
+  );
+  process.exitCode = 1;
+});
