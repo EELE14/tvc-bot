@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ItemColour {
+  PURPLE @map("purple")
+  ORANGE @map("orange")
+  RED    @map("red")
+  BLUE   @map("blue")
+  GREEN  @map("green")
+  YELLOW @map("yellow")
+  WHITE  @map("white")
+  PINK   @map("pink")
+  CYAN   @map("cyan")
+
+  @@map("item_colour")
+}
+
+enum EditorRole {
+  ADMIN  @map("admin")
+  EDITOR @map("editor")
+
+  @@map("editor_role")
+}
+
+model Item {
+  id     String      @id @default(cuid())
+  slug   String      @unique
+  name   String      @unique
+  colour ItemColour?
+  unsure Boolean     @default(false)
+
+  imageSourceUrl   String? @map("image_source_url")
+  imageObjectKey   String? @unique @map("image_object_key")
+  imageContentType String? @map("image_content_type")
+  imageBytes       Int?    @map("image_bytes")
+
+  lastEditorTag String?   @map("last_editor_tag")
+  valuedAt      DateTime  @map("valued_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  aliases   ItemAlias[]
+  values    ItemValue[]
+  revisions ItemRevision[]
+
+  @@map("item")
+}
+
+model ItemAlias {
+  id         String @id @default(cuid())
+  itemId     String @map("item_id")
+  alias      String
+  normalized String
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, normalized])
+  @@index([normalized])
+  @@map("item_alias")
+}
+
+model ItemValue {
+  id        String @id @default(cuid())
+  itemId    String @map("item_id")
+  serialMin Int?   @map("serial_min")
+  serialMax Int?   @map("serial_max")
+  amount    Int
+  demand    Int
+  stability Int
+  overpay   Int
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, serialMin])
+  @@map("item_value")
+}
+
+model ItemRevision {
+  id        String   @id @default(cuid())
+  itemId    String   @map("item_id")
+  actor     String
+  reason    String?
+  snapshot  Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt])
+  @@map("item_revision")
+}
+
+model Editor {
+  id        String     @id @default(cuid())
+  discordId String     @unique @map("discord_id")
+  role      EditorRole @default(EDITOR)
+  addedAt   DateTime   @default(now()) @map("added_at") @db.Timestamptz(3)
+  addedBy   String?    @map("added_by")
+
+  @@map("editor")
+}
