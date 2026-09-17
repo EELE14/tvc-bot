@@ -36,54 +36,42 @@ function fail(source: string, message: string): never {
 function toColour(source: string, raw: string): ItemColour | null {
   if (raw === "") return null;
   const member = raw.toUpperCase();
-  if (!(member in ItemColour))
-    fail(source, `unbekannte Farbe ${JSON.stringify(raw)}`);
+  if (!(member in ItemColour)) fail(source, `unknown colour ${JSON.stringify(raw)}`);
   return ItemColour[member as keyof typeof ItemColour];
 }
 
 function assertScale(source: string, scale: LegacyScale, label: string) {
   const { value, demand, stability, overpay } = scale;
-  if (!Number.isInteger(value) || value < 0)
-    fail(source, `${label}: ungültiger Wert ${value}`);
-  if (!Number.isInteger(demand) || demand < 1 || demand > 5)
-    fail(source, `${label}: demand ${demand}`);
-  if (!Number.isInteger(stability) || stability < 1 || stability > 5)
-    fail(source, `${label}: stability ${stability}`);
-  if (!Number.isInteger(overpay) || overpay < 0 || overpay > 5)
-    fail(source, `${label}: overpay ${overpay}`);
+  if (!Number.isInteger(value) || value < 0) fail(source, `${label}: invalid value ${value}`);
+  if (!Number.isInteger(demand) || demand < 1 || demand > 5) fail(source, `${label}: demand ${demand}`);
+  if (!Number.isInteger(stability) || stability < 1 || stability > 5) fail(source, `${label}: stability ${stability}`);
+  if (!Number.isInteger(overpay) || overpay < 0 || overpay > 5) fail(source, `${label}: overpay ${overpay}`);
 }
 
 function parseItem(source: string, raw: unknown): LegacyItem {
-  if (typeof raw !== "object" || raw === null) fail(source, "kein Objekt");
+  if (typeof raw !== "object" || raw === null) fail(source, "not an object");
   const item = raw as LegacyItem;
 
-  if (typeof item.name !== "string" || item.name === "")
-    fail(source, "name fehlt");
-  if (!Array.isArray(item.aliases)) fail(source, "aliases fehlt");
-  if (typeof item.timestamp !== "number") fail(source, "timestamp fehlt");
-  if (item.nsv && item.ddsrv.length > 0)
-    fail(source, "hat NSV und DDSRV gleichzeitig");
+  if (typeof item.name !== "string" || item.name === "") fail(source, "missing name");
+  if (!Array.isArray(item.aliases)) fail(source, "missing aliases");
+  if (typeof item.timestamp !== "number") fail(source, "missing timestamp");
+  if (item.nsv && item.ddsrv.length > 0) fail(source, "has both nsv and ddsrv");
 
   if (item.nsv) assertScale(source, item.nsv, "nsv");
   for (const tier of item.ddsrv) {
     assertScale(source, tier, `tier ${tier.min}-${tier.max}`);
-    if (!Number.isInteger(tier.min) || !Number.isInteger(tier.max))
-      fail(source, `tier ${tier.min}-${tier.max}: Grenze ungültig`);
-    if (tier.min > tier.max)
-      fail(source, `tier ${tier.min}-${tier.max}: min > max`);
+    if (!Number.isInteger(tier.min) || !Number.isInteger(tier.max)) fail(source, `tier ${tier.min}-${tier.max}: invalid bound`);
+    if (tier.min > tier.max) fail(source, `tier ${tier.min}-${tier.max}: min greater than max`);
   }
 
   const normalized = item.aliases.map((a) => a.trim().toLowerCase());
-  if (new Set(normalized).size !== normalized.length)
-    fail(source, "doppelter Alias");
+  if (new Set(normalized).size !== normalized.length) fail(source, "duplicate alias");
 
   return item;
 }
 
 async function readLegacyItems(dir: string) {
-  const files = (await readdir(dir))
-    .filter((f) => f.endsWith(".json") && f !== "editors.json")
-    .sort();
+  const files = (await readdir(dir)).filter((f) => f.endsWith(".json") && f !== "editors.json").sort();
   return Promise.all(
     files.map(async (file) => {
       const slug = path.basename(file, ".json");
@@ -94,26 +82,15 @@ async function readLegacyItems(dir: string) {
 }
 
 async function readLegacyEditors(dir: string): Promise<string[]> {
-  const raw = JSON.parse(
-    await readFile(path.join(dir, "editors.json"), "utf8"),
-  );
-  if (!Array.isArray(raw.allowed)) fail("editors.json", "allowed fehlt");
+  const raw = JSON.parse(await readFile(path.join(dir, "editors.json"), "utf8"));
+  if (!Array.isArray(raw.allowed)) fail("editors.json", "missing allowed");
   return raw.allowed;
 }
 
 function valueRows(item: LegacyItem) {
   if (item.nsv) {
     const { value, demand, stability, overpay } = item.nsv;
-    return [
-      {
-        serialMin: null,
-        serialMax: null,
-        amount: value,
-        demand,
-        stability,
-        overpay,
-      },
-    ];
+    return [{ serialMin: null, serialMax: null, amount: value, demand, stability, overpay }];
   }
   return item.ddsrv.map(({ min, max, value, demand, stability, overpay }) => ({
     serialMin: min,
@@ -127,14 +104,11 @@ function valueRows(item: LegacyItem) {
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) fail("env", "DATABASE_URL fehlt");
+  if (!connectionString) fail("env", "DATABASE_URL is not set");
 
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const dataDir =
-    process.env.LEGACY_DATA_DIR ?? path.resolve(here, "../../../old/Data");
-  const adminIds = new Set(
-    (process.env.DISCORD_ADMIN_IDS ?? "").split(",").filter(Boolean),
-  );
+  const dataDir = process.env.LEGACY_DATA_DIR ?? path.resolve(here, "../../../old/Data");
+  const adminIds = new Set((process.env.DISCORD_ADMIN_IDS ?? "").split(",").filter(Boolean));
   const dryRun = process.argv.includes("--dry-run");
 
   const entries = await readLegacyItems(dataDir);
@@ -186,20 +160,13 @@ async function main() {
         });
         if (recorded === 0) {
           await tx.itemRevision.create({
-            data: {
-              itemId: stored.id,
-              actor: IMPORT_ACTOR,
-              reason: "1:1 aus old/Data",
-              snapshot: raw,
-            },
+            data: { itemId: stored.id, actor: IMPORT_ACTOR, reason: "verbatim from old/Data", snapshot: raw },
           });
         }
       }
 
       for (const discordId of editorIds) {
-        const role = adminIds.has(discordId)
-          ? EditorRole.ADMIN
-          : EditorRole.EDITOR;
+        const role = adminIds.has(discordId) ? EditorRole.ADMIN : EditorRole.EDITOR;
         await tx.editor.upsert({
           where: { discordId },
           create: { discordId, role },
@@ -216,30 +183,24 @@ async function main() {
 
       for (const [key, count] of Object.entries(expected)) {
         const got = actual[key as keyof typeof actual];
-        if (got !== count)
-          fail(
-            "abgleich",
-            `${key}: erwartet ${count}, in der Datenbank ${got}`,
-          );
+        if (got !== count) fail("reconciliation", `${key}: expected ${count}, database has ${got}`);
       }
 
-      console.log("Abgleich in Ordnung:", actual);
+      console.log("reconciled:", actual);
       if (dryRun) throw new DryRunRollback();
     },
     { maxWait: 20_000, timeout: 180_000 },
   );
 
   await db.$disconnect();
-  console.log("Import abgeschlossen.");
+  console.log("import complete.");
 }
 
 main().catch((error) => {
   if (error instanceof DryRunRollback) {
-    console.log("Probelauf beendet, nichts geschrieben.");
+    console.log("dry run complete, nothing written.");
     return;
   }
-  console.error(
-    error instanceof ImportError ? `Abbruch — ${error.message}` : error,
-  );
+  console.error(error instanceof ImportError ? `aborted — ${error.message}` : error);
   process.exitCode = 1;
 });
