@@ -14,6 +14,7 @@
     "mysql2": "^3.24.4"
   },
   "devDependencies": {
+    "@types/node": "^22.20.3",
     "typescript": "^7.0.2"
   },
   "scripts": {
@@ -21,6 +22,7 @@
     "db:down": "docker compose down",
     "db:deploy": "npm run deploy --workspace @tvc/db",
     "db:generate": "npm run generate --workspace @tvc/db",
-    "typecheck": "tsc --noEmit -p packages/db/tsconfig.json"
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/db/tsconfig.json",
+    "test": "npm run test --workspace @tvc/core"
   }
 }

@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeAlias } from "@tvc/core";
 import { createPrismaClient, ItemColour, EditorRole } from "../src/index.ts";
 
 const IMPORT_ACTOR = "legacy-import";
@@ -64,7 +65,7 @@ function parseItem(source: string, raw: unknown): LegacyItem {
     if (tier.min > tier.max) fail(source, `tier ${tier.min}-${tier.max}: min greater than max`);
   }
 
-  const normalized = item.aliases.map((a) => a.trim().toLowerCase());
+  const normalized = item.aliases.map(normalizeAlias);
   if (new Set(normalized).size !== normalized.length) fail(source, "duplicate alias");
 
   return item;
@@ -148,7 +149,7 @@ async function main() {
           data: item.aliases.map((alias) => ({
             itemId: stored.id,
             alias,
-            normalized: alias.trim().toLowerCase(),
+            normalized: normalizeAlias(alias),
           })),
         });
         await tx.itemValue.createMany({
