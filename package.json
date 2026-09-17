@@ -12,5 +12,15 @@
   "overrides": {
     "deepmerge-ts": "^8.0.2",
     "mysql2": "^3.24.4"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:deploy": "npm run deploy --workspace @tvc/db",
+    "db:generate": "npm run generate --workspace @tvc/db",
+    "typecheck": "tsc --noEmit -p packages/db/tsconfig.json"
   }
 }
