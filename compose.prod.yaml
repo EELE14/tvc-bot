@@ -13,6 +13,12 @@ services:
       PORT: 3000
     expose:
       - 3000
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
     networks:
       - dokploy-network
 
@@ -23,7 +29,7 @@ services:
     restart: unless-stopped
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}

@@ -37,7 +37,8 @@ function fail(source: string, message: string): never {
 function toColour(source: string, raw: string): ItemColour | null {
   if (raw === "") return null;
   const member = raw.toUpperCase();
-  if (!(member in ItemColour)) fail(source, `unknown colour ${JSON.stringify(raw)}`);
+  if (!(member in ItemColour))
+    fail(source, `unknown colour ${JSON.stringify(raw)}`);
   return ItemColour[member as keyof typeof ItemColour];
 }
 
@@ -60,7 +61,9 @@ function parseItem(source: string, raw: unknown): LegacyItem {
 }
 
 async function readLegacyItems(dir: string) {
-  const files = (await readdir(dir)).filter((f) => f.endsWith(".json") && f !== "editors.json").sort();
+  const files = (await readdir(dir))
+    .filter((f) => f.endsWith(".json") && f !== "editors.json")
+    .sort();
   return Promise.all(
     files.map(async (file) => {
       const slug = path.basename(file, ".json");
@@ -71,7 +74,9 @@ async function readLegacyItems(dir: string) {
 }
 
 async function readLegacyEditors(dir: string): Promise<string[]> {
-  const raw = JSON.parse(await readFile(path.join(dir, "editors.json"), "utf8"));
+  const raw = JSON.parse(
+    await readFile(path.join(dir, "editors.json"), "utf8"),
+  );
   if (!Array.isArray(raw.allowed)) fail("editors.json", "missing allowed");
   return raw.allowed;
 }
@@ -79,7 +84,16 @@ async function readLegacyEditors(dir: string): Promise<string[]> {
 function valueRows(item: LegacyItem) {
   if (item.nsv) {
     const { value, demand, stability, overpay } = item.nsv;
-    return [{ serialMin: null, serialMax: null, amount: value, demand, stability, overpay }];
+    return [
+      {
+        serialMin: null,
+        serialMax: null,
+        amount: value,
+        demand,
+        stability,
+        overpay,
+      },
+    ];
   }
   return item.ddsrv.map(({ min, max, value, demand, stability, overpay }) => ({
     serialMin: min,
@@ -96,8 +110,14 @@ async function main() {
   if (!connectionString) fail("env", "DATABASE_URL is not set");
 
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const dataDir = process.env.LEGACY_DATA_DIR ?? path.resolve(here, "../../../old/Data");
-  const adminIds = new Set((process.env.DISCORD_ADMIN_IDS ?? "").split(",").filter(Boolean));
+  const dataDir =
+    process.env.LEGACY_DATA_DIR ?? path.resolve(here, "../../../old/Data");
+  const adminIds = new Set(
+    (process.env.DISCORD_ADMIN_IDS ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
   const dryRun = process.argv.includes("--dry-run");
 
   const entries = await readLegacyItems(dataDir);
@@ -149,13 +169,20 @@ async function main() {
         });
         if (recorded === 0) {
           await tx.itemRevision.create({
-            data: { itemId: stored.id, actor: IMPORT_ACTOR, reason: "verbatim from old/Data", snapshot: raw },
+            data: {
+              itemId: stored.id,
+              actor: IMPORT_ACTOR,
+              reason: "verbatim from old/Data",
+              snapshot: raw,
+            },
           });
         }
       }
 
       for (const discordId of editorIds) {
-        const role = adminIds.has(discordId) ? EditorRole.ADMIN : EditorRole.EDITOR;
+        const role = adminIds.has(discordId)
+          ? EditorRole.ADMIN
+          : EditorRole.EDITOR;
         await tx.editor.upsert({
           where: { discordId },
           create: { discordId, role },
@@ -172,7 +199,11 @@ async function main() {
 
       for (const [key, count] of Object.entries(expected)) {
         const got = actual[key as keyof typeof actual];
-        if (got !== count) fail("reconciliation", `${key}: expected ${count}, database has ${got}`);
+        if (got !== count)
+          fail(
+            "reconciliation",
+            `${key}: expected ${count}, database has ${got}`,
+          );
       }
 
       console.log("reconciled:", actual);
@@ -190,6 +221,8 @@ main().catch((error) => {
     console.log("dry run complete, nothing written.");
     return;
   }
-  console.error(error instanceof ImportError ? `aborted — ${error.message}` : error);
+  console.error(
+    error instanceof ImportError ? `aborted — ${error.message}` : error,
+  );
   process.exitCode = 1;
 });

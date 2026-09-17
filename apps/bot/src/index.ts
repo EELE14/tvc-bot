@@ -35,13 +35,18 @@ async function main(): Promise<void> {
 
     try {
       await registerCommands(ready, config.guildId);
-      await items.names();
-      setPresence("online", "Trading with eele14 & ethachu21");
-      console.log(`logged in as ${ready.user.tag}`);
     } catch (error) {
-      setPresence("dnd", "Startup failed");
-      console.error("startup failed", error);
+      setPresence("dnd", "Command registration failed");
+      console.error("registering commands failed", error);
+      return;
     }
+
+    await items
+      .names()
+      .catch((error) => console.error("warming the item cache failed", error));
+
+    setPresence("online", "Trading with eele14 & ethachu21");
+    console.log(`logged in as ${ready.user.tag}`);
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
