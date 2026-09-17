@@ -12,9 +12,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "@tvc/core": "*"
-  },
-  "devDependencies": {
+    "@tvc/core": "*",
     "prisma": "^7.10.0"
   },
   "type": "module",
