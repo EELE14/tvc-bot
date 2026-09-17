@@ -1,0 +1,36 @@
+{
+  "name": "Fixture Blade",
+  "aliases": ["Blade"],
+  "image": "",
+  "colour": "purple",
+  "usertag": "fixture_editor",
+  "unsure": true,
+  "nsv": null,
+  "ddsrv": [
+    {
+      "min": 1,
+      "max": 99,
+      "value": 900000,
+      "demand": 4,
+      "stability": 5,
+      "overpay": 5
+    },
+    {
+      "min": 100,
+      "max": 999,
+      "value": 400000,
+      "demand": 3,
+      "stability": 5,
+      "overpay": 3
+    },
+    {
+      "min": 1000,
+      "max": 70000,
+      "value": 120000,
+      "demand": 1,
+      "stability": 5,
+      "overpay": 1
+    }
+  ],
+  "timestamp": 1781214328
+}

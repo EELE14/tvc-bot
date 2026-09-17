@@ -53,6 +53,8 @@ jobs:
       - run: npm run db:generate
       - run: npm run db:deploy
       - run: npm run db:import -- --dry-run
+        env:
+          LEGACY_DATA_DIR: packages/db/test/fixtures/legacy
 
   build:
     name: web build

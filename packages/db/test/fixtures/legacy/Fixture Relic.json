@@ -1,0 +1,16 @@
+{
+  "name": "Fixture Relic",
+  "aliases": ["Relic", "Fixture Relic"],
+  "image": "https://example.invalid/relic.png",
+  "colour": "blue",
+  "usertag": "fixture_editor",
+  "unsure": false,
+  "nsv": {
+    "value": 200000,
+    "demand": 2,
+    "stability": 3,
+    "overpay": 5
+  },
+  "ddsrv": [],
+  "timestamp": 1776688505
+}
