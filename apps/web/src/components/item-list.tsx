@@ -16,7 +16,7 @@ export function ItemList({ items }: { items: ItemSummary[] }) {
 
   return (
     <>
-      <div className="border-b border-line p-2">
+      <div className="flex gap-2 border-b border-line p-2">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -24,6 +24,13 @@ export function ItemList({ items }: { items: ItemSummary[] }) {
           aria-label="search items"
           className="w-full border border-line bg-[#0f0f0f] px-2 py-1 text-ink outline-none focus:border-line-strong"
         />
+        <Link
+          href="/items/new"
+          aria-label="new item"
+          className="border border-line px-2.5 py-1 text-muted hover:border-line-strong hover:text-ink"
+        >
+          +
+        </Link>
       </div>
       <div className="flex-1 overflow-y-auto">
         {visible.map((item) => {

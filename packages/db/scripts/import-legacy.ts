@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeAlias } from "@tvc/core";
+import { itemProblems, normalizeAlias } from "@tvc/core";
 import { createPrismaClient, ItemColour, EditorRole } from "../src/index.ts";
 
 const IMPORT_ACTOR = "legacy-import";
@@ -41,32 +41,20 @@ function toColour(source: string, raw: string): ItemColour | null {
   return ItemColour[member as keyof typeof ItemColour];
 }
 
-function assertScale(source: string, scale: LegacyScale, label: string) {
-  const { value, demand, stability, overpay } = scale;
-  if (!Number.isInteger(value) || value < 0) fail(source, `${label}: invalid value ${value}`);
-  if (!Number.isInteger(demand) || demand < 1 || demand > 5) fail(source, `${label}: demand ${demand}`);
-  if (!Number.isInteger(stability) || stability < 1 || stability > 5) fail(source, `${label}: stability ${stability}`);
-  if (!Number.isInteger(overpay) || overpay < 0 || overpay > 5) fail(source, `${label}: overpay ${overpay}`);
-}
-
 function parseItem(source: string, raw: unknown): LegacyItem {
   if (typeof raw !== "object" || raw === null) fail(source, "not an object");
   const item = raw as LegacyItem;
 
-  if (typeof item.name !== "string" || item.name === "") fail(source, "missing name");
+  if (typeof item.name !== "string") fail(source, "missing name");
   if (!Array.isArray(item.aliases)) fail(source, "missing aliases");
   if (typeof item.timestamp !== "number") fail(source, "missing timestamp");
-  if (item.nsv && item.ddsrv.length > 0) fail(source, "has both nsv and ddsrv");
 
-  if (item.nsv) assertScale(source, item.nsv, "nsv");
-  for (const tier of item.ddsrv) {
-    assertScale(source, tier, `tier ${tier.min}-${tier.max}`);
-    if (!Number.isInteger(tier.min) || !Number.isInteger(tier.max)) fail(source, `tier ${tier.min}-${tier.max}: invalid bound`);
-    if (tier.min > tier.max) fail(source, `tier ${tier.min}-${tier.max}: min greater than max`);
-  }
-
-  const normalized = item.aliases.map(normalizeAlias);
-  if (new Set(normalized).size !== normalized.length) fail(source, "duplicate alias");
+  const problems = itemProblems({
+    name: item.name,
+    aliases: item.aliases,
+    values: valueRows(item),
+  });
+  if (problems.length > 0) fail(source, problems.join("; "));
 
   return item;
 }

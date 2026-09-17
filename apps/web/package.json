@@ -2,10 +2,12 @@
   "name": "@tvc/web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test \"test/**/*.test.ts\""
   },
   "dependencies": {
     "@tvc/core": "*",

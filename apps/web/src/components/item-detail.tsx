@@ -1,5 +1,6 @@
 import { splitValues } from "@/items.ts";
 import type { ItemDetail } from "@/types.ts";
+import { ItemActions } from "./item-actions.tsx";
 import { TierTable, UnrangedValue } from "./value-tables.tsx";
 
 function Meta({ label, value }: { label: string; value: string }) {
@@ -59,6 +60,8 @@ export function ItemDetailView({ item }: { item: ItemDetail }) {
           {JSON.stringify(item, null, 2)}
         </pre>
       </details>
+
+      <ItemActions slug={item.slug} name={item.name} />
     </article>
   );
 }
