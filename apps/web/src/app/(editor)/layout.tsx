@@ -24,6 +24,11 @@ export default async function EditorLayout({
           <Link href="/" className="tracking-[0.08em] uppercase hover:text-ink">
             TVC Bot
           </Link>
+          {editor.role === "ADMIN" && (
+            <Link href="/stats" className="hover:text-ink">
+              usage
+            </Link>
+          )}
           <span className="ml-auto">{editor.name}</span>
           {editor.role === "ADMIN" && (
             <span className="text-orange-500">[admin]</span>

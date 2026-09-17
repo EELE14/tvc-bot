@@ -25,6 +25,7 @@
     "db:deploy": "dotenv -e .env -- npm run deploy --workspace @tvc/db",
     "db:generate": "dotenv -e .env -- npm run generate --workspace @tvc/db",
     "db:import": "dotenv -e .env -- node packages/db/scripts/import-legacy.ts",
+    "db:seed-lookups": "dotenv -e .env -- node packages/db/scripts/seed-lookups.ts",
     "db:studio": "dotenv -e .env -- npm run studio --workspace @tvc/db",
     "web:dev": "dotenv -e .env -- npm run dev --workspace @tvc/web",
     "web:build": "dotenv -e .env -- npm run build --workspace @tvc/web",
