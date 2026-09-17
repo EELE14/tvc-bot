@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+.env
+.env.*
+!.env.example
+README.md
+
+coverage/
+*.log
+
+.DS_Store
