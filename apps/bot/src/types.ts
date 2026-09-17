@@ -2,7 +2,6 @@ import type { ItemModel, ItemValueModel } from "@tvc/db";
 
 export type DiscordConfig = {
   token: string;
-  clientId: string;
   guildId: string | undefined;
 };
 

@@ -1,17 +1,15 @@
-import { REST, Routes } from "discord.js";
+import type { Client } from "discord.js";
 import { valueCommand } from "./value/command.ts";
-import type { DiscordConfig } from "./types.ts";
 
-export async function registerCommands({
-  token,
-  clientId,
-  guildId,
-}: DiscordConfig): Promise<void> {
+export async function registerCommands(
+  client: Client<true>,
+  guildId: string | undefined,
+): Promise<void> {
   const body = [valueCommand.toJSON()];
-  const rest = new REST().setToken(token);
-  const route = guildId
-    ? Routes.applicationGuildCommands(clientId, guildId)
-    : Routes.applicationCommands(clientId);
 
-  await rest.put(route, { body });
+  if (guildId) {
+    await client.application.commands.set(body, guildId);
+    return;
+  }
+  await client.application.commands.set(body);
 }

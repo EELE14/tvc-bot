@@ -32,7 +32,7 @@ async function main(): Promise<void> {
     setPresence("dnd", "Starting (Syncing)");
 
     try {
-      await registerCommands(config);
+      await registerCommands(ready, config.guildId);
       await items.names();
       setPresence("online", "Trading with eele14 & ethachu21");
       console.log(`logged in as ${ready.user.tag}`);

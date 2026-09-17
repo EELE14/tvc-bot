@@ -11,7 +11,6 @@ function required(name: string): string {
 export function loadDiscordConfig(): DiscordConfig {
   return {
     token: required("DISCORD_BOT_TOKEN"),
-    clientId: required("DISCORD_CLIENT_ID"),
     guildId: process.env.DISCORD_GUILD_ID || undefined,
   };
 }
