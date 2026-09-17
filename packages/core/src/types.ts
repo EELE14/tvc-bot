@@ -9,8 +9,10 @@ export type ValueEntry = {
 
 export type RangedEntry = ValueEntry & { serialMin: number; serialMax: number };
 
-export type ResolvedValue = {
-  entry: ValueEntry;
+export type Ranged<T extends ValueEntry> = T & RangedEntry;
+
+export type ResolvedValue<T extends ValueEntry = ValueEntry> = {
+  entry: T;
   serial: number | null;
   clamped: boolean;
 };

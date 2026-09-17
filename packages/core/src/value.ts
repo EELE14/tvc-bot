@@ -4,21 +4,26 @@ import {
   SerialRequiredError,
 } from "./errors.ts";
 import { parseSerial } from "./serial.ts";
-import type { RangedEntry, ResolvedValue, ValueEntry } from "./types.ts";
+import type { Ranged, ResolvedValue, ValueEntry } from "./types.ts";
 
-function isRanged(entry: ValueEntry): entry is RangedEntry {
+function isRanged<T extends ValueEntry>(entry: T): entry is Ranged<T> {
   return entry.serialMin !== null && entry.serialMax !== null;
 }
 
-export function rangedEntries(entries: ValueEntry[]): RangedEntry[] {
+export function rangedEntries<T extends ValueEntry>(entries: T[]): Ranged<T>[] {
   return entries.filter(isRanged).sort((a, b) => a.serialMin - b.serialMin);
 }
 
-export function unrangedEntry(entries: ValueEntry[]): ValueEntry | undefined {
+export function unrangedEntry<T extends ValueEntry>(
+  entries: T[],
+): T | undefined {
   return entries.find((entry) => !isRanged(entry));
 }
 
-function moreSpecific(a: RangedEntry, b: RangedEntry): RangedEntry {
+function moreSpecific<T extends ValueEntry>(
+  a: Ranged<T>,
+  b: Ranged<T>,
+): Ranged<T> {
   const spanA = a.serialMax - a.serialMin;
   const spanB = b.serialMax - b.serialMin;
   if (spanA !== spanB) return spanA < spanB ? a : b;
@@ -26,10 +31,10 @@ function moreSpecific(a: RangedEntry, b: RangedEntry): RangedEntry {
   return a.amount <= b.amount ? a : b;
 }
 
-export function resolveValue(
-  entries: ValueEntry[],
+export function resolveValue<T extends ValueEntry>(
+  entries: T[],
   serialInput?: string | number | null,
-): ResolvedValue {
+): ResolvedValue<T> {
   const unranged = unrangedEntry(entries);
   if (unranged) return { entry: unranged, serial: null, clamped: false };
 
@@ -50,7 +55,7 @@ export function resolveValue(
   const covering = tiers.filter(
     (tier) => serial >= tier.serialMin && serial <= tier.serialMax,
   );
-  const entry = covering.reduce<RangedEntry | undefined>(
+  const entry = covering.reduce<Ranged<T> | undefined>(
     (best, tier) => (best && moreSpecific(best, tier) === best ? best : tier),
     undefined,
   );
