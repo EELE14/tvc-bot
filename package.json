@@ -22,7 +22,7 @@
     "db:down": "docker compose down",
     "db:deploy": "npm run deploy --workspace @tvc/db",
     "db:generate": "npm run generate --workspace @tvc/db",
-    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/db/tsconfig.json",
-    "test": "npm run test --workspace @tvc/core"
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/db/tsconfig.json && tsc --noEmit -p apps/bot/tsconfig.json",
+    "test": "npm run test --workspaces --if-present"
   }
 }

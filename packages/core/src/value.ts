@@ -1,25 +1,10 @@
+import {
+  NoValueError,
+  SerialOutOfRangeError,
+  SerialRequiredError,
+} from "./errors.ts";
 import { parseSerial } from "./serial.ts";
-
-export type ValueEntry = {
-  serialMin: number | null;
-  serialMax: number | null;
-  amount: number;
-  demand: number;
-  stability: number;
-  overpay: number;
-};
-
-export type RangedEntry = ValueEntry & { serialMin: number; serialMax: number };
-
-export type ResolvedValue = {
-  entry: ValueEntry;
-  serial: number | null;
-  clamped: boolean;
-};
-
-export class NoValueError extends Error {}
-export class SerialRequiredError extends Error {}
-export class SerialOutOfRangeError extends Error {}
+import type { RangedEntry, ResolvedValue, ValueEntry } from "./types.ts";
 
 function isRanged(entry: ValueEntry): entry is RangedEntry {
   return entry.serialMin !== null && entry.serialMax !== null;
@@ -69,8 +54,9 @@ export function resolveValue(
     (best, tier) => (best && moreSpecific(best, tier) === best ? best : tier),
     undefined,
   );
-  if (!entry)
+  if (!entry) {
     throw new SerialOutOfRangeError(`serial ${serial} falls between tiers`);
+  }
 
   return { entry, serial, clamped: serial !== requested };
 }

@@ -1,0 +1,17 @@
+{
+  "name": "@tvc/bot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "deploy-commands": "bun run scripts/deploy-commands.ts",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@tvc/core": "*",
+    "@tvc/db": "*",
+    "discord.js": "^14.27.0"
+  }
+}

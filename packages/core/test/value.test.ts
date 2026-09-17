@@ -6,7 +6,7 @@ import {
   SerialRequiredError,
   resolveValue,
   type ValueEntry,
-} from "../src/value.ts";
+} from "../src/index.ts";
 
 const scale = { demand: 3, stability: 5, overpay: 2 };
 

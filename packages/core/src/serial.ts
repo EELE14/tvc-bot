@@ -1,4 +1,4 @@
-export class SerialParseError extends Error {}
+import { SerialParseError } from "./errors.ts";
 
 const MULTIPLIERS = [
   ["k", 1e3],

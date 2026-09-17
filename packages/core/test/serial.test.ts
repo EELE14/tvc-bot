@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSerial, SerialParseError } from "../src/serial.ts";
+import { parseSerial, SerialParseError } from "../src/index.ts";
 
 test("parses plain numbers", () => {
   assert.equal(parseSerial("100"), 100);
