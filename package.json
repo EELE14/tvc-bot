@@ -16,15 +16,21 @@
   "devDependencies": {
     "@types/node": "^22.20.3",
     "bun": "1.4.2",
+    "dotenv-cli": "^11.0.0",
     "typescript": "^7.0.2"
   },
   "scripts": {
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:deploy": "npm run deploy --workspace @tvc/db",
-    "db:generate": "npm run generate --workspace @tvc/db",
+    "db:deploy": "dotenv -e .env -- npm run deploy --workspace @tvc/db",
+    "db:generate": "dotenv -e .env -- npm run generate --workspace @tvc/db",
+    "db:import": "dotenv -e .env -- node packages/db/scripts/import-legacy.ts",
+    "db:studio": "dotenv -e .env -- npm run studio --workspace @tvc/db",
+    "web:dev": "dotenv -e .env -- npm run dev --workspace @tvc/web",
+    "web:build": "dotenv -e .env -- npm run build --workspace @tvc/web",
+    "bot:dev": "dotenv -e .env -- npm run dev --workspace @tvc/bot",
+    "bot:start": "dotenv -e .env -- npm run start --workspace @tvc/bot",
     "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/db/tsconfig.json && tsc --noEmit -p apps/bot/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
-    "test": "npm run test --workspaces --if-present",
-    "web:dev": "npm run dev --workspace @tvc/web"
+    "test": "npm run test --workspaces --if-present"
   }
 }

@@ -1,5 +1,6 @@
 node_modules/
 generated/
+next-env.d.ts
 .next/
 out/
 dist/
