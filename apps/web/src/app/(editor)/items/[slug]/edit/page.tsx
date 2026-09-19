@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { saveItem, type FormState } from "@/actions.ts";
+import { saveItem } from "@/actions.ts";
+import type { FormState } from "@/types.ts";
 import { ItemForm } from "@/components/item-form.tsx";
 import { getItem, splitValues } from "@/items.ts";
 

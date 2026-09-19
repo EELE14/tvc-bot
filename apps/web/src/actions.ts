@@ -12,8 +12,7 @@ import {
 } from "./item-writes.ts";
 import { requireEditor } from "./session.ts";
 import { toSlug } from "./slug.ts";
-
-export type FormState = { problems: string[] };
+import type { FormState } from "./types.ts";
 
 function itemPath(slug: string): string {
   return `/items/${encodeURIComponent(slug)}`;

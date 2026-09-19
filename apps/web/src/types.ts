@@ -6,6 +6,8 @@ import type {
   ItemValueModel,
 } from "@tvc/db/types";
 
+export type FormState = { problems: string[] };
+
 export type SignedInEditor = {
   discordId: string;
   name: string;

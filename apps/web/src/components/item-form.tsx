@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import type { ValueEntry } from "@tvc/core";
 import type { ItemColour } from "@tvc/db/types";
-import type { FormState } from "@/actions.ts";
+import type { FormState } from "@/types.ts";
 import { ColourSelect, Field, ScaleSelect, inputClass } from "./fields.tsx";
 import { TierRows } from "./tier-rows.tsx";
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "./auth.ts";
-import { findEditor, isAdmin } from "./editors.ts";
+import { isAdmin } from "./access.ts";
+import { findEditor } from "./editors.ts";
 import type { SignedInEditor } from "./types.ts";
 
 export async function currentEditor(): Promise<SignedInEditor | null> {
