@@ -7,10 +7,9 @@ export function createItemRepository(
   cacheTtlMs: number,
 ): ItemRepository {
   let cached: { names: string[]; expiresAt: number } | undefined;
+  let refreshing: Promise<string[]> | undefined;
 
-  async function names(): Promise<string[]> {
-    if (cached && cached.expiresAt > Date.now()) return cached.names;
-
+  async function load(): Promise<string[]> {
     const rows = await db.item.findMany({
       where: { deletedAt: null },
       select: { name: true },
@@ -20,6 +19,24 @@ export function createItemRepository(
       names: rows.map((row) => row.name),
       expiresAt: Date.now() + cacheTtlMs,
     };
+    return cached.names;
+  }
+
+  function refresh(): Promise<string[]> {
+    refreshing ??= load().finally(() => {
+      refreshing = undefined;
+    });
+    return refreshing;
+  }
+
+  async function names(): Promise<string[]> {
+    if (!cached) return refresh();
+
+    if (cached.expiresAt <= Date.now()) {
+      void refresh().catch((error) =>
+        console.error("refreshing the item cache failed", error),
+      );
+    }
     return cached.names;
   }
 

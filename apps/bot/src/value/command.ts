@@ -30,7 +30,7 @@ export async function handleValueAutocomplete(
   items: ItemRepository,
 ): Promise<void> {
   const typed = interaction.options.getFocused().toLowerCase();
-  const names = await items.names();
+  const names = await items.names().catch(() => [] as string[]);
   const matches = names
     .filter((name) => name.toLowerCase().includes(typed))
     .slice(0, AUTOCOMPLETE_LIMIT);
