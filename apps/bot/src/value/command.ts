@@ -74,13 +74,16 @@ export async function handleValue(
   items: ItemRepository,
   record: LookupRecorder,
 ): Promise<void> {
+  const received = Date.now();
   await interaction.deferReply();
+  const acknowledged = Date.now();
 
   const query = interaction.options.getString("item", true);
   const serial = interaction.options.getString("serial");
-  const started = Date.now();
 
   const lookup = await lookUp(items, query, serial);
+  const resolved = Date.now();
+
   await reply(interaction, query, lookup);
 
   await record(lookup, {
@@ -89,6 +92,8 @@ export async function handleValue(
     userId: interaction.user.id,
     guildId: interaction.guildId,
     channelId: interaction.channelId,
-    durationMs: Date.now() - started,
+    ackMs: acknowledged - received,
+    lookupMs: resolved - acknowledged,
+    durationMs: Date.now() - acknowledged,
   });
 }

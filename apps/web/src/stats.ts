@@ -2,6 +2,7 @@ import { cache } from "react";
 import { db } from "./db.ts";
 import type {
   DailyUse,
+  Timings,
   FailedQuery,
   PopularAmount,
   PopularItem,
@@ -16,13 +17,12 @@ function since(days: number): Date {
 }
 
 export const totals = cache(async (): Promise<Totals> => {
-  const [uses, day, week, users, guilds, duration] = await Promise.all([
+  const [uses, day, week, users, guilds] = await Promise.all([
     db.lookup.count(),
     db.lookup.count({ where: { createdAt: { gte: since(1) } } }),
     db.lookup.count({ where: { createdAt: { gte: since(7) } } }),
     db.lookup.findMany({ distinct: ["userHash"], select: { userHash: true } }),
     db.lookup.findMany({ distinct: ["guildId"], select: { guildId: true } }),
-    db.lookup.aggregate({ _avg: { durationMs: true } }),
   ]);
 
   return {
@@ -31,7 +31,34 @@ export const totals = cache(async (): Promise<Totals> => {
     usesLastWeek: week,
     users: users.length,
     guilds: guilds.length,
-    averageMs: Math.round(duration._avg.durationMs ?? 0),
+  };
+});
+
+export const timings = cache(async (): Promise<Timings> => {
+  const [row] = await db.$queryRaw<
+    Array<{
+      ack: number | null;
+      lookup: number | null;
+      reply: number | null;
+      slowest: number | null;
+      over: bigint;
+    }>
+  >`
+    select round(avg(ack_ms))::int as ack,
+           round(avg(lookup_ms))::int as lookup,
+           round(avg(duration_ms - lookup_ms))::int as reply,
+           max(ack_ms + duration_ms) as slowest,
+           count(*) filter (where ack_ms + duration_ms > 3000) as over
+    from lookup
+    where lookup_ms is not null
+  `;
+
+  return {
+    ackMs: row?.ack ?? 0,
+    lookupMs: row?.lookup ?? 0,
+    replyMs: row?.reply ?? 0,
+    slowest: row?.slowest ?? 0,
+    overBudget: Number(row?.over ?? 0),
   };
 });
 

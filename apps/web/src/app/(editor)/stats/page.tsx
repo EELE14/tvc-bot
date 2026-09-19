@@ -14,6 +14,7 @@ import {
   popularAmounts,
   popularItems,
   staleFavourites,
+  timings,
   totals,
 } from "@/stats.ts";
 
@@ -36,9 +37,10 @@ function day(value: Date): string {
 export default async function StatsPage() {
   await requireAdmin();
 
-  const [figures, breakdown, days, items, amounts, failures, stale] =
+  const [figures, pace, breakdown, days, items, amounts, failures, stale] =
     await Promise.all([
       totals(),
+      timings(),
       outcomes(),
       dailyUses(),
       popularItems(),
@@ -57,8 +59,24 @@ export default async function StatsPage() {
         <Figure label="last 24 hours" value={String(figures.usesLastDay)} />
         <Figure label="distinct users" value={String(figures.users)} />
         <Figure label="servers" value={String(figures.guilds)} />
-        <Figure label="average lookup" value={`${figures.averageMs} ms`} />
       </div>
+
+      <Panel
+        title="response time"
+        hint="discord drops an interaction that is not acknowledged within three seconds"
+      >
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <Figure label="acknowledge" value={`${pace.ackMs} ms`} />
+          <Figure label="database" value={`${pace.lookupMs} ms`} />
+          <Figure label="discord reply" value={`${pace.replyMs} ms`} />
+          <Figure label="slowest" value={`${pace.slowest} ms`} />
+        </div>
+        {pace.overBudget > 0 && (
+          <p className="mt-2 text-danger">
+            {pace.overBudget} lookups took longer than three seconds
+          </p>
+        )}
+      </Panel>
 
       <Panel title="uses per day" hint="last 30 days">
         <DailyChart days={days} />

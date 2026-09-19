@@ -134,6 +134,8 @@ model Lookup {
   userHash    String        @map("user_hash")
   guildId     String?       @map("guild_id")
   channelId   String?       @map("channel_id")
+  ackMs       Int?          @map("ack_ms")
+  lookupMs    Int?          @map("lookup_ms")
   durationMs  Int           @map("duration_ms")
 
   item Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)

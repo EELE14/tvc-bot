@@ -8,6 +8,8 @@ export type LookupContext = {
   userId: string;
   guildId: string | null;
   channelId: string | null;
+  ackMs: number;
+  lookupMs: number;
   durationMs: number;
 };
 
@@ -67,6 +69,8 @@ export function createLookupRecorder(
           userHash: pseudonym(salt, context.userId),
           guildId: context.guildId,
           channelId: context.channelId,
+          ackMs: context.ackMs,
+          lookupMs: context.lookupMs,
           durationMs: context.durationMs,
           ...measurements(lookup),
         },

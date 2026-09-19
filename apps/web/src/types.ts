@@ -30,7 +30,14 @@ export type Totals = {
   usesLastWeek: number;
   users: number;
   guilds: number;
-  averageMs: number;
+};
+
+export type Timings = {
+  ackMs: number;
+  lookupMs: number;
+  replyMs: number;
+  slowest: number;
+  overBudget: number;
 };
 
 export type DailyUse = { day: Date; uses: number; users: number };
