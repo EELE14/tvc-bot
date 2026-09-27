@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   NoValueError,
   SerialOutOfRangeError,
-  SerialRequiredError,
   resolveValue,
   type ValueEntry,
 } from "../src/index.ts";
@@ -41,9 +40,19 @@ test("an unranged value ignores the serial", () => {
   assert.equal(resolved.clamped, false);
 });
 
-test("a tiered item requires a serial", () => {
-  assert.throws(() => resolveValue(tradeTicket), SerialRequiredError);
-  assert.throws(() => resolveValue(tradeTicket, ""), SerialRequiredError);
+test("a tiered item without a serial falls back to the highest serial", () => {
+  for (const missing of [undefined, null, ""]) {
+    const resolved = resolveValue(tradeTicket, missing);
+    assert.equal(resolved.serial, 100_000);
+    assert.equal(resolved.entry.amount, 5_000);
+    assert.equal(resolved.clamped, false);
+  }
+});
+
+test("the fallback takes the highest bound even when tiers overlap", () => {
+  const overlapping = [tier(1, 1000, 10_000), tier(500, 600, 20_000)];
+  assert.equal(resolveValue(overlapping).serial, 1000);
+  assert.equal(resolveValue(overlapping, "5000").serial, 1000);
 });
 
 test("picks the tier containing the serial", () => {

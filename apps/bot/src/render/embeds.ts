@@ -1,5 +1,5 @@
 import { Colors, EmbedBuilder } from "discord.js";
-import { formatAmount, type ResolvedValue } from "@tvc/core";
+import { formatAmount, highestSerial, type ResolvedValue } from "@tvc/core";
 import { INCOMPLETE_VALUES } from "../messages.ts";
 import type { ItemWithValues } from "../types.ts";
 import { ANSI_AMOUNT, ansiBlock, labelledRow, paint } from "./ansi.ts";
@@ -8,8 +8,9 @@ import { embedColour, paintedScale } from "./colours.ts";
 function serialSuffix(item: ItemWithValues, resolved: ResolvedValue): string {
   if (resolved.serial === null) return "";
 
-  const highest = Math.max(...item.values.map((value) => value.serialMax ?? 0));
-  return resolved.serial === highest ? " #HIGH" : ` #${resolved.serial}`;
+  return resolved.serial === highestSerial(item.values)
+    ? " #HIGH"
+    : ` #${resolved.serial}`;
 }
 
 function isIncomplete(item: ItemWithValues): boolean {

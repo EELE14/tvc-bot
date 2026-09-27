@@ -129,19 +129,10 @@ async function main() {
       continue;
     }
 
-    if (tiers.length > 0 && roll < 0.16) {
-      rows.push({
-        ...base,
-        outcome: LookupOutcome.SERIAL_REQUIRED,
-        query: item.name,
-        itemId: item.id,
-        candidates: 1,
-      });
-      continue;
-    }
-
     const serial =
-      tiers.length > 0 ? String(pick(tiers).serialMin + zipf(40)) : null;
+      tiers.length > 0 && roll >= 0.16
+        ? String(pick(tiers).serialMin + zipf(40))
+        : null;
     try {
       const resolved = resolveValue(item.values, serial);
       rows.push({

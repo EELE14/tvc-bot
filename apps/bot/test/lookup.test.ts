@@ -82,10 +82,6 @@ test("separates the ways a serial can fail", async () => {
   ]);
 
   assert.equal(
-    (await lookUp(gapped, "Ticket", null)).outcome,
-    "SERIAL_REQUIRED",
-  );
-  assert.equal(
     (await lookUp(gapped, "Ticket", "500")).outcome,
     "SERIAL_OUT_OF_RANGE",
   );
@@ -93,6 +89,17 @@ test("separates the ways a serial can fail", async () => {
     (await lookUp(gapped, "Ticket", "abc")).outcome,
     "SERIAL_UNPARSEABLE",
   );
+});
+
+test("resolves a tiered item without a serial at its highest serial", async () => {
+  const lookup = await lookUp(
+    repository([item("Ticket", [tier(1, 1, 5), tier(1000, 4999, 50)])]),
+    "Ticket",
+    null,
+  );
+
+  assert.equal(lookup.outcome, "RESOLVED");
+  assert.equal(lookup.outcome === "RESOLVED" && lookup.resolved.serial, 4999);
 });
 
 test("reports an item that carries no value", async () => {

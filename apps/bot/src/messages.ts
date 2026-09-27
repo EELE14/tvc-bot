@@ -2,7 +2,6 @@ import {
   NoValueError,
   SerialOutOfRangeError,
   SerialParseError,
-  SerialRequiredError,
 } from "@tvc/core";
 import type { ItemWithValues } from "./types.ts";
 
@@ -22,9 +21,6 @@ export function ambiguousItem(
 }
 
 export function describeFailure(error: unknown): string {
-  if (error instanceof SerialRequiredError) {
-    return "This item is valued by serial number. Add one to `/value`.";
-  }
   if (error instanceof SerialParseError) {
     return `That serial is not a number: ${error.message}`;
   }

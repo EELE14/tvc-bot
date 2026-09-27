@@ -2,7 +2,6 @@ import {
   NoValueError,
   SerialOutOfRangeError,
   SerialParseError,
-  SerialRequiredError,
   resolveValue,
   type ResolvedValue,
 } from "@tvc/core";
@@ -22,14 +21,12 @@ export type Lookup =
     };
 
 type FailedOutcome =
-  | "SERIAL_REQUIRED"
   | "SERIAL_OUT_OF_RANGE"
   | "SERIAL_UNPARSEABLE"
   | "ITEM_UNPRICED"
   | "FAILED";
 
 function classify(error: unknown): FailedOutcome {
-  if (error instanceof SerialRequiredError) return "SERIAL_REQUIRED";
   if (error instanceof SerialOutOfRangeError) return "SERIAL_OUT_OF_RANGE";
   if (error instanceof SerialParseError) return "SERIAL_UNPARSEABLE";
   if (error instanceof NoValueError) return "ITEM_UNPRICED";
@@ -53,7 +50,8 @@ export async function lookUp(
     const candidates = await items.find(query);
     item = candidates[0];
     if (!item) return { outcome: "UNKNOWN_ITEM" };
-    if (candidates.length > 1) return { outcome: "AMBIGUOUS_QUERY", candidates };
+    if (candidates.length > 1)
+      return { outcome: "AMBIGUOUS_QUERY", candidates };
 
     return {
       outcome: "RESOLVED",
