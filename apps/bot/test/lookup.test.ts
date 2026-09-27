@@ -102,6 +102,38 @@ test("resolves a tiered item without a serial at its highest serial", async () =
   assert.equal(lookup.outcome === "RESOLVED" && lookup.resolved.serial, 4999);
 });
 
+function repositoryOf(known: ItemWithValues[]): ItemRepository {
+  return {
+    names: async () => [],
+    find: async (query) =>
+      known.filter((entry) => entry.name.toLowerCase() === query.toLowerCase()),
+  };
+}
+
+test("reads a serial typed into the item name", async () => {
+  const items = repositoryOf([
+    item("Paterson Navy", [tier(1, 49_999, 90), tier(50_000, 99_999, 40)]),
+  ]);
+  const lookup = await lookUp(items, "Paterson navy 32193", null);
+
+  assert.equal(lookup.outcome, "RESOLVED");
+  assert.equal(lookup.outcome === "RESOLVED" && lookup.resolved.serial, 32_193);
+});
+
+test("prefers the serial option over a number in the item name", async () => {
+  const items = repositoryOf([item("Paterson Navy", [tier(1, 99_999, 90)])]);
+  const lookup = await lookUp(items, "Paterson navy 32193", "500");
+
+  assert.equal(lookup.outcome === "RESOLVED" && lookup.resolved.serial, 500);
+});
+
+test("keeps a name that ends in a number when it matches as typed", async () => {
+  const items = repositoryOf([item("Model 3", [unranged])]);
+  const lookup = await lookUp(items, "Model 3", null);
+
+  assert.equal(lookup.outcome === "RESOLVED" && lookup.item.name, "Model 3");
+});
+
 test("reports an item that carries no value", async () => {
   const lookup = await lookUp(repository([item("Cactus", [])]), "Cactus", "1");
   assert.equal(lookup.outcome, "ITEM_UNPRICED");

@@ -19,3 +19,13 @@ export function parseSerial(input: string | number): number {
   }
   return Math.trunc(parsed * multiplier);
 }
+
+const TRAILING_SERIAL = /^(.*\S)\s+#?(\d+(?:\.\d+)?[kmbt]?)$/i;
+
+export function splitTrailingSerial(
+  query: string,
+): { name: string; serial: string } | undefined {
+  const match = TRAILING_SERIAL.exec(query.trim());
+  if (!match) return undefined;
+  return { name: match[1]!, serial: match[2]! };
+}

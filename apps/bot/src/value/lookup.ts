@@ -3,6 +3,7 @@ import {
   SerialOutOfRangeError,
   SerialParseError,
   resolveValue,
+  splitTrailingSerial,
   type ResolvedValue,
 } from "@tvc/core";
 import { LookupOutcome } from "@tvc/db/types";
@@ -37,6 +38,22 @@ export function outcomeCode(lookup: Lookup): LookupOutcome {
   return LookupOutcome[lookup.outcome];
 }
 
+async function findWithSerial(
+  items: ItemRepository,
+  query: string,
+  serial: string | null,
+): Promise<{ candidates: ItemWithValues[]; serial: string | null }> {
+  const candidates = await items.find(query);
+  if (candidates.length > 0) return { candidates, serial };
+
+  const split = splitTrailingSerial(query);
+  if (!split) return { candidates, serial };
+  return {
+    candidates: await items.find(split.name),
+    serial: serial ?? split.serial,
+  };
+}
+
 export async function lookUp(
   items: ItemRepository,
   query: string,
@@ -47,7 +64,11 @@ export async function lookUp(
 
   let item: ItemWithValues | undefined;
   try {
-    const candidates = await items.find(query);
+    const { candidates, serial: effectiveSerial } = await findWithSerial(
+      items,
+      query,
+      serial,
+    );
     item = candidates[0];
     if (!item) return { outcome: "UNKNOWN_ITEM" };
     if (candidates.length > 1)
@@ -56,7 +77,7 @@ export async function lookUp(
     return {
       outcome: "RESOLVED",
       item,
-      resolved: resolveValue(item.values, serial),
+      resolved: resolveValue(item.values, effectiveSerial),
     };
   } catch (error) {
     return { outcome: classify(error), item, error };
