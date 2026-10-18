@@ -2,6 +2,17 @@ import { NoValueError, SerialOutOfRangeError } from "./errors.ts";
 import { parseSerial } from "./serial.ts";
 import type { Ranged, ResolvedValue, ValueEntry } from "./types.ts";
 
+const HIGHEST_SERIAL = /^(#?high)?$/i;
+
+function requestedSerial(
+  serialInput: string | number | null | undefined,
+  highest: number,
+): number {
+  if (serialInput === undefined || serialInput === null) return highest;
+  if (HIGHEST_SERIAL.test(String(serialInput).trim())) return highest;
+  return parseSerial(serialInput);
+}
+
 function isRanged<T extends ValueEntry>(entry: T): entry is Ranged<T> {
   return entry.serialMin !== null && entry.serialMax !== null;
 }
@@ -46,10 +57,7 @@ export function resolveValue<T extends ValueEntry>(
   const highest = highestSerial(tiers);
   if (!lowest || highest === null) throw new NoValueError("item has no values");
 
-  const requested =
-    serialInput === undefined || serialInput === null || serialInput === ""
-      ? highest
-      : parseSerial(serialInput);
+  const requested = requestedSerial(serialInput, highest);
   const serial = Math.min(Math.max(requested, lowest.serialMin), highest);
   const covering = tiers.filter(
     (tier) => serial >= tier.serialMin && serial <= tier.serialMax,

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   NoValueError,
   SerialOutOfRangeError,
+  SerialParseError,
   resolveValue,
   type ValueEntry,
 } from "../src/index.ts";
@@ -47,6 +48,20 @@ test("a tiered item without a serial falls back to the highest serial", () => {
     assert.equal(resolved.entry.amount, 5_000);
     assert.equal(resolved.clamped, false);
   }
+});
+
+test("high asks for the highest serial like an empty serial does", () => {
+  for (const high of ["HIGH", "high", " High ", "#HIGH"]) {
+    const resolved = resolveValue(tradeTicket, high);
+    assert.equal(resolved.serial, 100_000, high);
+    assert.equal(resolved.entry.amount, 5_000, high);
+    assert.equal(resolved.clamped, false, high);
+  }
+});
+
+test("other words still fail to parse", () => {
+  assert.throws(() => resolveValue(tradeTicket, "highest"), SerialParseError);
+  assert.throws(() => resolveValue(tradeTicket, "low"), SerialParseError);
 });
 
 test("the fallback takes the highest bound even when tiers overlap", () => {
