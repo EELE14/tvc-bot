@@ -20,7 +20,7 @@ export function parseSerial(input: string | number): number {
   return Math.trunc(parsed * multiplier);
 }
 
-const TRAILING_SERIAL = /^(.*\S)\s+#?(\d+(?:\.\d+)?[kmbt]?)$/i;
+const TRAILING_SERIAL = /^(.*\S)\s+#?(\d{1,12}(?:\.\d{1,3})?[kmbt]?)$/i;
 
 export function splitTrailingSerial(
   query: string,

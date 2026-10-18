@@ -1,15 +1,24 @@
 import {
+  MessageFlags,
   SlashCommandBuilder,
+  type InteractionEditReplyOptions,
   type AutocompleteInteraction,
   type ChatInputCommandInteraction,
 } from "discord.js";
 import { buildErrorEmbed, buildValueEmbed } from "../render/embeds.ts";
-import { ambiguousItem, describeFailure, unknownItem } from "../messages.ts";
+import {
+  ONLY_ASKER_MAY_PICK,
+  ambiguousItem,
+  describeFailure,
+  unknownItem,
+} from "../messages.ts";
 import type { ItemRepository } from "../types.ts";
 import type { LookupRecorder } from "../analytics.ts";
 import { lookUp, type Lookup } from "./lookup.ts";
+import { pickRow, readPick, type PickInteraction } from "./pick.ts";
 
 const AUTOCOMPLETE_LIMIT = 25;
+const SERIAL_MAX_LENGTH = 20;
 
 export const valueCommand = new SlashCommandBuilder()
   .setName("value")
@@ -22,7 +31,10 @@ export const valueCommand = new SlashCommandBuilder()
       .setAutocomplete(true),
   )
   .addStringOption((option) =>
-    option.setName("serial").setDescription("Enter serial"),
+    option
+      .setName("serial")
+      .setDescription("Enter serial")
+      .setMaxLength(SERIAL_MAX_LENGTH),
   );
 
 export async function handleValueAutocomplete(
@@ -38,35 +50,56 @@ export async function handleValueAutocomplete(
   await interaction.respond(matches.map((name) => ({ name, value: name })));
 }
 
-async function reply(
-  interaction: ChatInputCommandInteraction,
-  query: string,
-  lookup: Lookup,
-): Promise<void> {
+function present(query: string, lookup: Lookup): InteractionEditReplyOptions {
+  const cleared = { content: "", embeds: [], components: [] };
   switch (lookup.outcome) {
     case "EASTER_EGG":
-      await interaction.followUp(lookup.reply);
-      return;
+      return { ...cleared, content: lookup.reply };
     case "UNKNOWN_ITEM":
-      await interaction.followUp({
-        embeds: [buildErrorEmbed(unknownItem(query))],
-      });
-      return;
+      return {
+        ...cleared,
+        embeds: [buildErrorEmbed(unknownItem(query, lookup.suggestions))],
+        components: pickRow(lookup.suggestions, lookup.serial),
+      };
     case "AMBIGUOUS_QUERY":
-      await interaction.followUp({
-        embeds: [buildErrorEmbed(ambiguousItem(query, lookup.candidates))],
-      });
-      return;
+      return {
+        ...cleared,
+        embeds: [buildErrorEmbed(ambiguousItem(query))],
+        components: pickRow(lookup.candidates, lookup.serial),
+      };
     case "RESOLVED":
-      await interaction.followUp({
+      return {
+        ...cleared,
         embeds: [buildValueEmbed(lookup.item, lookup.resolved)],
-      });
-      return;
+      };
     default:
-      await interaction.followUp({
+      return {
+        ...cleared,
         embeds: [buildErrorEmbed(describeFailure(lookup.error))],
-      });
+      };
   }
+}
+
+export async function handleValuePick(
+  interaction: PickInteraction,
+  items: ItemRepository,
+): Promise<void> {
+  if (
+    interaction.user.id !== interaction.message.interactionMetadata?.user.id
+  ) {
+    await interaction.reply({
+      content: ONLY_ASKER_MAY_PICK,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+
+  const pick = readPick(interaction);
+  if (!pick) return;
+
+  await interaction.deferUpdate();
+  const lookup = await lookUp(items, pick.slug, pick.serial);
+  await interaction.editReply(present(pick.slug, lookup));
 }
 
 export async function handleValue(
@@ -84,7 +117,7 @@ export async function handleValue(
   const lookup = await lookUp(items, query, serial);
   const resolved = Date.now();
 
-  await reply(interaction, query, lookup);
+  await interaction.editReply(present(query, lookup));
 
   await record(lookup, {
     query,

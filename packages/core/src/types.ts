@@ -16,3 +16,5 @@ export type ResolvedValue<T extends ValueEntry = ValueEntry> = {
   serial: number | null;
   clamped: boolean;
 };
+
+export type Suggestible = { name: string; aliases: string[] };

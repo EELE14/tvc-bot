@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { lookUp } from "../src/value/lookup.ts";
-import type { ItemRepository, ItemWithValues } from "../src/types.ts";
+import type {
+  CatalogueEntry,
+  ItemRepository,
+  ItemWithValues,
+} from "../src/types.ts";
 
 function item(name: string, values: ItemWithValues["values"]): ItemWithValues {
   return { id: name, slug: name, name, values } as ItemWithValues;
@@ -29,18 +33,32 @@ const unranged = {
   overpay: 2,
 };
 
-function repository(found: ItemWithValues[]): ItemRepository {
-  return { names: async () => [], find: async () => found };
+function stub(
+  find: ItemRepository["find"],
+  catalogue: CatalogueEntry[] = [],
+): ItemRepository {
+  return {
+    names: async () => catalogue.map((entry) => entry.name),
+    catalogue: async () => catalogue,
+    find,
+  };
 }
 
+function repository(found: ItemWithValues[]): ItemRepository {
+  return stub(async () => found);
+}
+
+const failing = (message: string) =>
+  stub(async () => {
+    throw new Error(message);
+  });
+
 test("reports an easter egg before touching the database", async () => {
-  const items: ItemRepository = {
-    names: async () => [],
-    find: async () => {
-      throw new Error("should not be queried");
-    },
-  };
-  const lookup = await lookUp(items, "Hydrogen", null);
+  const lookup = await lookUp(
+    failing("should not be queried"),
+    "Hydrogen",
+    null,
+  );
   assert.equal(lookup.outcome, "EASTER_EGG");
 });
 
@@ -103,11 +121,11 @@ test("resolves a tiered item without a serial at its highest serial", async () =
 });
 
 function repositoryOf(known: ItemWithValues[]): ItemRepository {
-  return {
-    names: async () => [],
-    find: async (query) =>
+  return stub(
+    async (query) =>
       known.filter((entry) => entry.name.toLowerCase() === query.toLowerCase()),
-  };
+    known.map(({ name, slug }) => ({ name, slug, aliases: [] })),
+  );
 }
 
 test("reads a serial typed into the item name", async () => {
@@ -134,19 +152,60 @@ test("keeps a name that ends in a number when it matches as typed", async () => 
   assert.equal(lookup.outcome === "RESOLVED" && lookup.item.name, "Model 3");
 });
 
+test("suggests similar items for an unknown name", async () => {
+  const items = repositoryOf([
+    item("Extractor", [unranged]),
+    item("Accordion", [unranged]),
+  ]);
+  const lookup = await lookUp(items, "extracter", null);
+
+  assert.equal(lookup.outcome, "UNKNOWN_ITEM");
+  assert.deepEqual(
+    lookup.outcome === "UNKNOWN_ITEM" &&
+      lookup.suggestions.map((entry) => entry.name),
+    ["Extractor"],
+  );
+});
+
+test("carries a serial typed after an unknown name into the suggestions", async () => {
+  const items = repositoryOf([
+    item("Guycot Chain Carbine", [unranged]),
+    item("Guycot Chain Pistol", [unranged]),
+  ]);
+  const lookup = await lookUp(items, "guycot 78785", null);
+
+  assert.equal(lookup.outcome, "UNKNOWN_ITEM");
+  assert.equal(lookup.outcome === "UNKNOWN_ITEM" && lookup.serial, "78785");
+  assert.equal(
+    lookup.outcome === "UNKNOWN_ITEM" && lookup.suggestions.length,
+    2,
+  );
+});
+
+test("still reports an unknown item when the catalogue cannot load", async () => {
+  const items: ItemRepository = {
+    ...repository([]),
+    catalogue: async () => {
+      throw new Error("connection refused");
+    },
+  };
+  const lookup = await lookUp(items, "extracter", null);
+
+  assert.equal(lookup.outcome, "UNKNOWN_ITEM");
+  assert.deepEqual(lookup.outcome === "UNKNOWN_ITEM" && lookup.suggestions, []);
+});
+
 test("reports an item that carries no value", async () => {
   const lookup = await lookUp(repository([item("Cactus", [])]), "Cactus", "1");
   assert.equal(lookup.outcome, "ITEM_UNPRICED");
 });
 
 test("survives a database failure, so the user still hears back", async () => {
-  const broken: ItemRepository = {
-    names: async () => [],
-    find: async () => {
-      throw new Error("connection refused");
-    },
-  };
-  const lookup = await lookUp(broken, "Accordion", "150");
+  const lookup = await lookUp(
+    failing("connection refused"),
+    "Accordion",
+    "150",
+  );
 
   assert.equal(lookup.outcome, "FAILED");
   assert.equal(lookup.outcome === "FAILED" && lookup.item, undefined);

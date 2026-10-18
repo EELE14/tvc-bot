@@ -13,8 +13,10 @@ import { registerCommands } from "./commands.ts";
 import {
   handleValue,
   handleValueAutocomplete,
+  handleValuePick,
   valueCommand,
 } from "./value/command.ts";
+import { isPick } from "./value/pick.ts";
 
 async function main(): Promise<void> {
   const config = loadBotConfig();
@@ -42,7 +44,7 @@ async function main(): Promise<void> {
     }
 
     await items
-      .names()
+      .catalogue()
       .catch((error) => console.error("warming the item cache failed", error));
 
     setPresence("online", "Trading with eele14 & ethachu21");
@@ -63,6 +65,13 @@ async function main(): Promise<void> {
         interaction.commandName === valueCommand.name
       ) {
         await handleValue(interaction, items, record);
+        return;
+      }
+      if (
+        (interaction.isButton() || interaction.isStringSelectMenu()) &&
+        isPick(interaction.customId)
+      ) {
+        await handleValuePick(interaction, items);
       }
     } catch (error) {
       console.error("interaction failed", error);

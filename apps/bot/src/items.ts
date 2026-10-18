@@ -1,35 +1,43 @@
 import { normalizeAlias } from "@tvc/core";
 import type { PrismaClient } from "@tvc/db";
-import type { ItemRepository, ItemWithValues } from "./types.ts";
+import type {
+  CatalogueEntry,
+  ItemRepository,
+  ItemWithValues,
+} from "./types.ts";
 
 export function createItemRepository(
   db: PrismaClient,
   cacheTtlMs: number,
 ): ItemRepository {
-  let cached: { names: string[]; expiresAt: number } | undefined;
-  let refreshing: Promise<string[]> | undefined;
+  let cached: { entries: CatalogueEntry[]; expiresAt: number } | undefined;
+  let refreshing: Promise<CatalogueEntry[]> | undefined;
 
-  async function load(): Promise<string[]> {
+  async function load(): Promise<CatalogueEntry[]> {
     const rows = await db.item.findMany({
       where: { deletedAt: null },
-      select: { name: true },
+      select: { name: true, slug: true, aliases: { select: { alias: true } } },
       orderBy: { name: "asc" },
     });
     cached = {
-      names: rows.map((row) => row.name),
+      entries: rows.map((row) => ({
+        name: row.name,
+        slug: row.slug,
+        aliases: row.aliases.map(({ alias }) => alias),
+      })),
       expiresAt: Date.now() + cacheTtlMs,
     };
-    return cached.names;
+    return cached.entries;
   }
 
-  function refresh(): Promise<string[]> {
+  function refresh(): Promise<CatalogueEntry[]> {
     refreshing ??= load().finally(() => {
       refreshing = undefined;
     });
     return refreshing;
   }
 
-  async function names(): Promise<string[]> {
+  async function catalogue(): Promise<CatalogueEntry[]> {
     if (!cached) return refresh();
 
     if (cached.expiresAt <= Date.now()) {
@@ -37,7 +45,11 @@ export function createItemRepository(
         console.error("refreshing the item cache failed", error),
       );
     }
-    return cached.names;
+    return cached.entries;
+  }
+
+  async function names(): Promise<string[]> {
+    return (await catalogue()).map((entry) => entry.name);
   }
 
   async function find(query: string): Promise<ItemWithValues[]> {
@@ -63,5 +75,5 @@ export function createItemRepository(
     });
   }
 
-  return { names, find };
+  return { names, catalogue, find };
 }

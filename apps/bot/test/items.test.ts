@@ -18,7 +18,7 @@ function countingDb(options: { blocking?: boolean } = {}): Recorder {
             unblock = resolve;
           });
         }
-        return [{ name: `Item ${calls}` }];
+        return [{ name: `Item ${calls}`, slug: `item-${calls}`, aliases: [] }];
       },
     },
   } as unknown as PrismaClient;
@@ -78,7 +78,7 @@ test("keeps serving the stale entry when a refresh fails", async () => {
       findMany: async () => {
         calls += 1;
         if (calls > 1) throw new Error("database is down");
-        return [{ name: "Accordion" }];
+        return [{ name: "Accordion", slug: "Accordion", aliases: [] }];
       },
     },
   } as unknown as PrismaClient;
@@ -88,4 +88,28 @@ test("keeps serving the stale entry when a refresh fails", async () => {
   assert.deepEqual(await items.names(), ["Accordion"]);
   await settle();
   assert.deepEqual(await items.names(), ["Accordion"]);
+});
+
+test("serves aliases alongside names for suggestions", async () => {
+  const db = {
+    item: {
+      findMany: async () => [
+        {
+          name: "Model 3 Lightning",
+          slug: "Model 3 Lightning",
+          aliases: [{ alias: "Model 3" }],
+        },
+      ],
+    },
+  } as unknown as PrismaClient;
+  const items = createItemRepository(db, 60_000);
+
+  assert.deepEqual(await items.catalogue(), [
+    {
+      name: "Model 3 Lightning",
+      slug: "Model 3 Lightning",
+      aliases: ["Model 3"],
+    },
+  ]);
+  assert.deepEqual(await items.names(), ["Model 3 Lightning"]);
 });

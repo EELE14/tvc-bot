@@ -4,16 +4,29 @@ import {
   SerialParseError,
   resolveValue,
   splitTrailingSerial,
+  suggest,
   type ResolvedValue,
 } from "@tvc/core";
 import { LookupOutcome } from "@tvc/db/types";
-import type { ItemRepository, ItemWithValues } from "../types.ts";
+import type {
+  CatalogueEntry,
+  ItemRepository,
+  ItemWithValues,
+} from "../types.ts";
 import { EASTER_EGGS } from "./easter-eggs.ts";
 
 export type Lookup =
   | { outcome: "EASTER_EGG"; reply: string }
-  | { outcome: "UNKNOWN_ITEM" }
-  | { outcome: "AMBIGUOUS_QUERY"; candidates: ItemWithValues[] }
+  | {
+      outcome: "UNKNOWN_ITEM";
+      suggestions: CatalogueEntry[];
+      serial: string | null;
+    }
+  | {
+      outcome: "AMBIGUOUS_QUERY";
+      candidates: ItemWithValues[];
+      serial: string | null;
+    }
   | { outcome: "RESOLVED"; item: ItemWithValues; resolved: ResolvedValue }
   | {
       outcome: FailedOutcome;
@@ -38,20 +51,35 @@ export function outcomeCode(lookup: Lookup): LookupOutcome {
   return LookupOutcome[lookup.outcome];
 }
 
-async function findWithSerial(
+type Search = {
+  name: string;
+  serial: string | null;
+  candidates: ItemWithValues[];
+};
+
+async function search(
   items: ItemRepository,
   query: string,
   serial: string | null,
-): Promise<{ candidates: ItemWithValues[]; serial: string | null }> {
+): Promise<Search> {
   const candidates = await items.find(query);
-  if (candidates.length > 0) return { candidates, serial };
+  if (candidates.length > 0) return { name: query, serial, candidates };
 
   const split = splitTrailingSerial(query);
-  if (!split) return { candidates, serial };
+  if (!split) return { name: query, serial, candidates };
   return {
-    candidates: await items.find(split.name),
+    name: split.name,
     serial: serial ?? split.serial,
+    candidates: await items.find(split.name),
   };
+}
+
+async function suggestionsFor(
+  items: ItemRepository,
+  name: string,
+): Promise<CatalogueEntry[]> {
+  const catalogue = await items.catalogue().catch(() => []);
+  return suggest(name, catalogue);
 }
 
 export async function lookUp(
@@ -64,20 +92,27 @@ export async function lookUp(
 
   let item: ItemWithValues | undefined;
   try {
-    const { candidates, serial: effectiveSerial } = await findWithSerial(
-      items,
-      query,
-      serial,
-    );
-    item = candidates[0];
-    if (!item) return { outcome: "UNKNOWN_ITEM" };
-    if (candidates.length > 1)
-      return { outcome: "AMBIGUOUS_QUERY", candidates };
+    const found = await search(items, query, serial);
+    item = found.candidates[0];
+    if (!item) {
+      return {
+        outcome: "UNKNOWN_ITEM",
+        suggestions: await suggestionsFor(items, found.name),
+        serial: found.serial,
+      };
+    }
+    if (found.candidates.length > 1) {
+      return {
+        outcome: "AMBIGUOUS_QUERY",
+        candidates: found.candidates,
+        serial: found.serial,
+      };
+    }
 
     return {
       outcome: "RESOLVED",
       item,
-      resolved: resolveValue(item.values, effectiveSerial),
+      resolved: resolveValue(item.values, found.serial),
     };
   } catch (error) {
     return { outcome: classify(error), item, error };
