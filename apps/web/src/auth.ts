@@ -16,6 +16,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Discord({
       clientId: required("DISCORD_CLIENT_ID"),
       clientSecret: required("DISCORD_CLIENT_SECRET"),
+      // Discord now sends `iss` on the callback, Auth.js otherwise checks it against a placeholder issuer.
+      issuer: "https://discord.com",
       authorization: { params: { scope: "identify" } },
     }),
   ],
